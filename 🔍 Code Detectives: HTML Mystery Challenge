@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find The Error: HTML</title>
+    <style>
+        :root {
+            --bg-main: #1e1e1e;
+            --bg-editor: #252526;
+            --bg-sidebar: #333333;
+            --text-main: #cccccc;
+            --tag-color: #569cd6;
+            --attr-color: #9cdcfe;
+            --string-color: #ce9178;
+            --comment-color: #6a9955;
+            --accent-green: #4caf50;
+            --accent-red: #f44336;
+            --font-mono: 'Consolas', 'Courier New', monospace;
+            --font-sans: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background-color: #111;
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 16:9 Responsive Container Logic */
+        .game-container {
+            width: 96vw;
+            height: calc(96vw * 9 / 16);
+            max-height: 90vh;
+            max-width: calc(90vh * 16 / 9);
+            background-color: var(--bg-main);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            border: 1px solid #444;
+            overflow: hidden;
+        }
+
+        /* Header UI */
+        header {
+            background-color: #323233;
+            padding: 1% 2%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #111;
+            height: 10%;
+        }
+
+        .title-area h1 {
+            font-size: clamp(1rem, 2.5vw, 1.5rem);
+            color: #fff;
+            letter-spacing: 1px;
+        }
+
+        .title-area span {
+            color: var(--tag-color);
+            font-family: var(--font-mono);
+        }
+
+        .stats-area {
+            display: flex;
+            gap: 20px;
+            font-size: clamp(0.9rem, 2vw, 1.2rem);
+            font-weight: bold;
+        }
+
+        .score-box { color: #ffd700; }
+        .level-box { color: #4fc3f7; }
+
+        .controls button {
+            background: #444;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: clamp(0.8rem, 1.5vw, 1rem);
+            transition: background 0.2s;
+        }
+
+        .controls button:hover { background: #555; }
+        .controls button.active { background: var(--tag-color); }
+
+        /* Main Editor Area */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background-color: var(--bg-editor);
+            padding: 2%;
+            overflow-y: auto;
+        }
+
+        /* Editor window styling */
+        .editor-top-bar {
+            display: flex;
+            align-items: center;
+            background-color: #1e1e1e;
+            padding: 5px 10px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            margin-bottom: 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .mac-dots {
+            display: flex;
+            gap: 6px;
+        }
+
+        .mac-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        .mac-dot.red { background-color: #ff5f56; }
+        .mac-dot.yellow { background-color: #ffbd2e; }
+        .mac-dot.green { background-color: #27c93f; }
+
+        .file-tab {
+            margin-left: 20px;
+            background-color: var(--bg-editor);
+            padding: 5px 15px;
+            color: #fff;
+            font-family: var(--font-mono);
+            font-size: 0.9em;
+            border-top-left-radius: 5px;
+            border-top-right-radius: 5px;
+        }
+
+        .code-area {
+            background-color: var(--bg-editor);
+            flex: 1;
+            padding: 15px 0;
+            font-family: var(--font-mono);
+            font-size: clamp(1rem, 2.5vw, 1.6rem);
+            line-height: 1.5;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            overflow-y: auto;
+            border: 1px solid #1e1e1e;
+            border-top: none;
+        }
+
+        .code-line {
+            display: flex;
+            padding: 0 10px;
+        }
+
+        .code-line:hover {
+            background-color: #2a2d2e;
+        }
+
+        .line-num {
+            width: 40px;
+            text-align: right;
+            padding-right: 15px;
+            color: #858585;
+            user-select: none;
+        }
+
+        .line-content {
+            white-space: pre;
+            flex: 1;
+        }
+
+        /* Interactive Tags */
+        .interactive-tag {
+            color: var(--tag-color);
+            cursor: pointer;
+            border-radius: 3px;
+            padding: 0 2px;
+            transition: all 0.2s;
+            position: relative;
+            display: inline-block;
+        }
+
+        .interactive-tag.comment {
+            color: var(--comment-color);
+        }
+
+        .interactive-tag:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 5px rgba(255,255,255,0.2);
+        }
+
+        .interactive-tag.correct {
+            background-color: rgba(76, 175, 80, 0.3);
+            color: #a5d6a7;
+            text-shadow: 0 0 10px #4caf50;
+            animation: pulse-green 1s infinite;
+        }
+
+        .interactive-tag.wrong {
+            background-color: rgba(244, 67, 54, 0.3);
+            color: #ef9a9a;
+            animation: shake 0.4s;
+        }
+
+        /* Feedback Panel */
+        #feedback-panel {
+            height: 25%;
+            background-color: #2d2d2d;
+            border-top: 2px solid #444;
+            padding: 2%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            transition: background-color 0.3s;
+        }
+
+        #feedback-title {
+            font-size: clamp(1.2rem, 3vw, 1.8rem);
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+
+        #feedback-desc {
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            color: #aaa;
+            max-width: 80%;
+        }
+
+        #next-btn {
+            margin-top: 15px;
+            padding: 10px 30px;
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            font-weight: bold;
+            background-color: var(--accent-green);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: transform 0.1s, background-color 0.2s;
+        }
+
+        #next-btn:hover {
+            background-color: #45a049;
+            transform: scale(1.05);
+        }
+
+        /* Overlay Screens */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .overlay h2 {
+            font-size: clamp(2rem, 5vw, 4rem);
+            color: var(--tag-color);
+            margin-bottom: 20px;
+            font-family: var(--font-mono);
+        }
+
+        .overlay p {
+            font-size: clamp(1.2rem, 2.5vw, 1.5rem);
+            margin-bottom: 30px;
+            max-width: 80%;
+            line-height: 1.5;
+        }
+
+        .start-btn, .restart-btn {
+            padding: 15px 40px;
+            font-size: clamp(1.2rem, 2.5vw, 1.5rem);
+            background-color: var(--tag-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .start-btn:hover, .restart-btn:hover {
+            background-color: #4daafc;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(86, 156, 214, 0.4);
+        }
+
+        .hidden { display: none !important; }
+
+        /* Animations */
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    
+    <!-- Start Screen -->
+    <div id="start-screen" class="overlay">
+        <h2>&lt;Find The Error/&gt;</h2>
+        <p>Grade 7 Computer Technology<br><br>Analyze the HTML snippets. Click on the tag that contains a syntax error or structural mistake. Earn points for accuracy!</p>
+        <button class="start-btn" onclick="initGame()">Start Debugging</button>
+    </div>
+
+    <!-- End Screen -->
+    <div id="end-screen" class="overlay hidden">
+        <h2>&lt;Debug Complete/&gt;</h2>
+        <p>Final Score: <span id="final-score" style="color: gold; font-weight: bold;">0</span></p>
+        <button class="restart-btn" onclick="location.reload()">Play Again</button>
+    </div>
+
+    <header>
+        <div class="title-area">
+            <h1>Find The Error: <span>HTML</span></h1>
+        </div>
+        <div class="stats-area">
+            <div class="level-box">LVL: <span id="ui-level">1/10</span></div>
+            <div class="score-box">PTS: <span id="ui-score">0</span></div>
+        </div>
+        <div class="controls">
+            <button id="music-toggle" onclick="toggleMusic()">🎵 Music OFF</button>
+        </div>
+    </header>
+
+    <main>
+        <div class="editor-top-bar">
+            <div class="mac-dots">
+                <div class="mac-dot red"></div>
+                <div class="mac-dot yellow"></div>
+                <div class="mac-dot green"></div>
+            </div>
+            <div class="file-tab">index.html</div>
+        </div>
+        <div class="code-area" id="code-display">
+            <!-- Code populated by JS -->
+        </div>
+    </main>
+
+    <footer id="feedback-panel">
+        <h3 id="feedback-title">Analyze the Code</h3>
+        <p id="feedback-desc">Click the HTML tag that has an error.</p>
+        <button id="next-btn" onclick="nextLevel()">Next Level</button>
+    </footer>
+
+</div>
+
+<script>
+    // --- Level Data ---
+    const levels = [
+        {
+            raw: "<!DOCTYPE html>\n<html>\n<head>\n  <title>My First Page</title>\n</head>\n<body>\n  <p>Hello World!</p>\n</body>\n</html_>",
+            target: "</html_>",
+            instruction: "Find the typo in the HTML Boilerplate.",
+            explanation: "The closing tag for an HTML document must be exactly &lt;/html&gt;."
+        },
+        {
+            raw: "<body>\n  <h1>Main Heading</h1>\n  <p>Some text here.</p>\n  <h2>Sub Heading</h2>\n  <p>More text.</p>\n  <h3>Another section<h2>\n</body>",
+            target: "<h2>", // The second one, closing h3
+            instruction: "Look closely at the heading tags (h1-h6).",
+            explanation: "An &lt;h3&gt; tag was opened, but closed with an &lt;h2&gt; tag. Tags must match!"
+        },
+        {
+            raw: "<body>\n  <p>This is a standard paragraph.</p>\n  <br>\n  <p>This paragraph has an error.</q>\n</body>",
+            target: "</q>",
+            instruction: "Check the paragraph tags.",
+            explanation: "A paragraph starts with &lt;p&gt; and must end with &lt;/p&gt;."
+        },
+        {
+            raw: "<p>We can use formatting tags.</p>\n<p>This text is <b>bold</b>.</p>\n<p>This text is <i>italic<i/>.</p>\n<p>This text is <u>underlined</u>.</p>",
+            target: "<i/>",
+            instruction: "Review the bold, italic, and underline formatting elements.",
+            explanation: "The closing slash goes at the beginning of the tag name: &lt;/i&gt;, not at the end."
+        },
+        {
+            raw: "<!DOCTYPE html>\n<html>\n<head>\n  <title>My Site</title>\n</head>\n<body>\n  <p>Hello.</p>\n  <hr>\n  <p>Goodbye.</p>\n  <hr></hr>\n</body>\n</html>",
+            target: "</hr>",
+            instruction: "Check the line break and horizontal rule tags.",
+            explanation: "&lt;hr&gt; (Horizontal Rule) is an empty element. It does not need a closing &lt;/hr&gt; tag in HTML5."
+        },
+        {
+            raw: "<body>\n  <h1>Welcome</h1>\n  <-- This is a comment section -->\n  <p>Content goes here.</p>\n</body>",
+            target: "<-- This is a comment section -->",
+            instruction: "Inspect the HTML comment syntax.",
+            explanation: "An HTML comment must start with &lt;!-- (two dashes) and end with --&gt;."
+        },
+        {
+            raw: "<body>\n  <p>Formatting can be combined.</p>\n  <p>This is <b><i>very important</i></b>.</p>\n  <p>This is <u><b>also important</u></b>.</p>\n</body>",
+            target: "</u>", // Target the first incorrectly closed tag
+            instruction: "Look for improper tag nesting.",
+            explanation: "Tags must be closed in the reverse order they were opened. &lt;b&gt; was opened last, so &lt;/b&gt; must close first."
+        },
+        {
+            raw: "<!DOCTYPE html>\n<html>\n<head>\n  <title>Test Page</title>\n<body>\n  <h1>Hi!</h1>\n</body>\n</html>",
+            target: "<body>",
+            instruction: "Analyze the main structure of the HTML boilerplate.",
+            explanation: "The &lt;head&gt; section must be closed with &lt;/head&gt; before opening the &lt;body&gt;."
+        },
+        {
+            raw: "<body>\n  <h2>Recipe List</h2>\n  <p>Ingredients:</p>\n  <p><br>1 Cup Flour</br></p>\n  <p>2 Eggs</p>\n</body>",
+            target: "</br>",
+            instruction: "Review the use of line breaks.",
+            explanation: "&lt;br&gt; is an empty element used for line breaks. It does not have a closing &lt;/br&gt; tag."
+        },
+        {
+            raw: "<!DOCTYP html>\n<html>\n<head>\n  <title>Final Boss</title>\n</head>\n<body>\n  <h1>You made it!</h1>\n  <hr>\n  <p>Find the <b>final <i>error</i></b>.</p>\n</body>\n</html>",
+            target: "<!DOCTYP html>",
+            instruction: "The final test. Find the error in the document type declaration.",
+            explanation: "The document type declaration must be exactly &lt;!DOCTYPE html&gt; with an 'E'."
+        }
+    ];
+
+    // --- Game State ---
+    let currentLevelIdx = 0;
+    let score = 0;
+    let attemptsThisLevel = 0;
+    let levelActive = false;
+
+    // --- Audio System (Web Audio API Synth) ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx;
+    let isMusicPlaying = false;
+    let nextNoteTime = 0;
+    let noteIndex = 0;
+    let timerID;
+
+    // Retro Arpeggio Notes (Pentatonic minor)
+    const melody = [261.63, 311.13, 349.23, 392.00, 466.16, 392.00, 349.23, 311.13]; 
+    const tempo = 140; 
+    const lookahead = 25.0; 
+    const scheduleAheadTime = 0.1;
+
+    function initAudio() {
+        if (!audioCtx) audioCtx = new AudioContext();
+    }
+
+    function playTone(freq, type, duration, vol) {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function playCorrectSFX() {
+        playTone(600, 'sine', 0.1, 0.2);
+        setTimeout(() => playTone(800, 'sine', 0.2, 0.2), 100);
+    }
+
+    function playWrongSFX() {
+        playTone(150, 'sawtooth', 0.3, 0.2);
+    }
+
+    function nextNote() {
+        const secondsPerBeat = 60.0 / tempo;
+        nextNoteTime += 0.25 * secondsPerBeat; // 16th notes
+        noteIndex++;
+        if (noteIndex >= melody.length) noteIndex = 0;
+    }
+
+    function scheduleNote(beatNumber, time) {
+        if(!isMusicPlaying) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.value = melody[beatNumber] / 2; // Lower octave for BGM
+        
+        gain.gain.setValueAtTime(0.05, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(time);
+        osc.stop(time + 0.1);
+    }
+
+    function scheduler() {
+        while (nextNoteTime < audioCtx.currentTime + scheduleAheadTime ) {
+            scheduleNote(noteIndex, nextNoteTime);
+            nextNote();
+        }
+        timerID = setTimeout(scheduler, lookahead);
+    }
+
+    function toggleMusic() {
+        initAudio();
+        const btn = document.getElementById('music-toggle');
+        if (isMusicPlaying) {
+            isMusicPlaying = false;
+            clearTimeout(timerID);
+            btn.innerText = "🎵 Music OFF";
+            btn.classList.remove('active');
+        } else {
+            // Resume or start
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            isMusicPlaying = true;
+            nextNoteTime = audioCtx.currentTime + 0.05;
+            scheduler();
+            btn.innerText = "🎵 Music ON";
+            btn.classList.add('active');
+        }
+    }
+
+    // --- Game Logic ---
+
+    function initGame() {
+        document.getElementById('start-screen').classList.add('hidden');
+        initAudio(); // Initialize audio context on first user interaction
+        if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        loadLevel(currentLevelIdx);
+    }
+
+    function updateUI() {
+        document.getElementById('ui-level').innerText = `${currentLevelIdx + 1}/${levels.length}`;
+        document.getElementById('ui-score').innerText = score;
+    }
+
+    function loadLevel(index) {
+        levelActive = true;
+        attemptsThisLevel = 0;
+        const levelData = levels[index];
+        updateUI();
+
+        // Reset Feedback UI
+        const panel = document.getElementById('feedback-panel');
+        panel.style.backgroundColor = '#2d2d2d';
+        document.getElementById('feedback-title').innerText = "Analyze the Code";
+        document.getElementById('feedback-title').style.color = "#fff";
+        document.getElementById('feedback-desc').innerText = levelData.instruction;
+        document.getElementById('next-btn').style.display = 'none';
+
+        // Render Code
+        const codeDisplay = document.getElementById('code-display');
+        codeDisplay.innerHTML = '';
+
+        const lines = levelData.raw.split('\n');
+        
+        // Counter to handle identical incorrect tags (e.g., multiple <p> tags, but only one is the target)
+        // We find the exact string match. If there are duplicates, we only want the one intended by the level design.
+        // For simplicity in this logic, we assume the target string is unique in the snippet or the first instance is the error.
+        // In my level design, the target text is uniquely identifiable or its first occurrence is the intended error.
+
+        let targetFoundInRender = false;
+
+        lines.forEach((lineText, lineIndex) => {
+            const lineDiv = document.createElement('div');
+            lineDiv.className = 'code-line';
+
+            const numSpan = document.createElement('span');
+            numSpan.className = 'line-num';
+            numSpan.innerText = lineIndex + 1;
+            lineDiv.appendChild(numSpan);
+
+            const contentSpan = document.createElement('span');
+            contentSpan.className = 'line-content';
+
+            // Regex to split by HTML tags AND HTML Comments
+            // (<(?:!--[\s\S]*?--|>|[^>]+)>) captures tags and comments
+            const regex = /(<!--[\s\S]*?-->|<[^>]+>)/g;
+            const parts = lineText.split(regex);
+
+            parts.forEach(part => {
+                if (!part) return;
+
+                if (regex.test(part) || part.startsWith('<')) {
+                    // It's a tag or comment
+                    const tagSpan = document.createElement('span');
+                    tagSpan.className = 'interactive-tag';
+                    if (part.startsWith('<!--')) tagSpan.classList.add('comment');
+                    
+                    tagSpan.innerText = part;
+
+                    // Determine if this is the target error
+                    if (!targetFoundInRender && part === levelData.target) {
+                        tagSpan.dataset.target = "true";
+                        // We only mark the first exact string match to avoid issues if level design has duplicates
+                        // However, level 2 target is "<h2>" where the first one is correct, second is wrong.
+                        // FIX: If target is not unique, we need a better identifier.
+                        // Since I control the level data, I ensured targets are unique EXCEPT level 2.
+                        // Let's refine Level 2 target in data to be unique, or handle it here.
+                        // Actually, in Level 2: <h2>Sub Heading</h2> ... <h3>Another<h2>. 
+                        // If they click the first <h2>, it's wrong. If they click the second, it's correct.
+                        // To fix this simply, I'll match the *last* instance if it's not unique, or just ensure uniqueness in level array.
+                        // I will update level 2 array data slightly so target is unique.
+                        targetFoundInRender = true; 
+                    } else {
+                        tagSpan.dataset.target = "false";
+                    }
+
+                    // For level 2 specific fix: if it's the target string but we already found it, it might be the REAL target.
+                    // Let's modify level 2 raw string slightly in the array above to make the target unique: `<h3>Another section<h2_>` -> target `<h2_>`.
+                    // Actually, let's keep it clean. I will manually adjust the level string in memory to ensure uniqueness for the parser.
+                    // Wait, Level 2 raw: "<body>\n  <h1>Main Heading</h1>\n  <p>Some text here.</p>\n  <h2>Sub Heading</h2>\n  <p>More text.</p>\n  <h3>Another section<h2>\n</body>"
+                    // Target: "<h2>"
+                    // First <h2> matches target = true. This is a bug.
+                    // Let's override the dataset target assignment logic based on index if needed, OR just change Level 2 data.
+                    // Changing Level 2 data is safest. I will update the levels array initialization to avoid duplicate strings for targets.
+                    
+                    tagSpan.onclick = function() { handleTagClick(this); };
+                    contentSpan.appendChild(tagSpan);
+                } else {
+                    // Plain text
+                    const textNode = document.createTextNode(part);
+                    contentSpan.appendChild(textNode);
+                }
+            });
+
+            lineDiv.appendChild(contentSpan);
+            codeDisplay.appendChild(lineDiv);
+        });
+
+        // Patch: Fix Level 2 specifically since I didn't change the array above.
+        if (index === 1) {
+            const tags = document.querySelectorAll('.interactive-tag');
+            let h2Count = 0;
+            tags.forEach(t => {
+                if(t.innerText === '<h2>') {
+                    h2Count++;
+                    if(h2Count === 1) t.dataset.target = "false"; // First one is correct syntax
+                    if(h2Count === 2) t.dataset.target = "true";  // Second one is the error
+                }
+            });
+        }
+        // Patch Level 7: target "</u>". First one is error.
+         if (index === 6) {
+            const tags = document.querySelectorAll('.interactive-tag');
+            let uCount = 0;
+            tags.forEach(t => {
+                if(t.innerText === '</u>') {
+                    uCount++;
+                    if(uCount === 1) t.dataset.target = "true"; // First closing U is the nesting error
+                    if(uCount === 2) t.dataset.target = "false";
+                }
+            });
+        }
+    }
+
+    function handleTagClick(element) {
+        if (!levelActive) return;
+
+        const isTarget = element.dataset.target === "true";
+
+        if (isTarget) {
+            // Correct Answer
+            levelActive = false;
+            playCorrectSFX();
+            
+            element.classList.add('correct');
+            
+            // Calculate Points
+            let pointsEarned = 1000 - (attemptsThisLevel * 200);
+            if (pointsEarned < 100) pointsEarned = 100;
+            score += pointsEarned;
+            updateUI();
+
+            // Update Feedback
+            const panel = document.getElementById('feedback-panel');
+            panel.style.backgroundColor = 'rgba(76, 175, 80, 0.2)';
+            document.getElementById('feedback-title').innerText = "Bug Squashed! +" + pointsEarned;
+            document.getElementById('feedback-title').style.color = 'var(--accent-green)';
+            document.getElementById('feedback-desc').innerHTML = levels[currentLevelIdx].explanation;
+            
+            document.getElementById('next-btn').style.display = 'inline-block';
+        } else {
+            // Wrong Answer
+            if(element.classList.contains('wrong')) return; // already clicked
+
+            attemptsThisLevel++;
+            playWrongSFX();
+            
+            element.classList.add('wrong');
+            setTimeout(() => {
+                 element.classList.remove('wrong');
+                 // Keep a subtle visual indicator it was clicked? nah, let them remember.
+            }, 500);
+
+            // Update Feedback
+            const panel = document.getElementById('feedback-panel');
+            panel.style.backgroundColor = 'rgba(244, 67, 54, 0.2)';
+            document.getElementById('feedback-title').innerText = "Syntax Valid";
+            document.getElementById('feedback-title').style.color = "#ff5252";
+            document.getElementById('feedback-desc').innerText = "That tag looks correct in its context. Keep searching!";
+            
+            // Revert feedback panel color after short delay
+            setTimeout(() => {
+                if(levelActive) {
+                    panel.style.backgroundColor = '#2d2d2d';
+                    document.getElementById('feedback-title').innerText = "Analyze the Code";
+                    document.getElementById('feedback-title').style.color = "#fff";
+                    document.getElementById('feedback-desc').innerText = levels[currentLevelIdx].instruction;
+                }
+            }, 2000);
+        }
+    }
+
+    function nextLevel() {
+        currentLevelIdx++;
+        if (currentLevelIdx < levels.length) {
+            loadLevel(currentLevelIdx);
+        } else {
+            // Game Complete
+            document.getElementById('end-screen').classList.remove('hidden');
+            document.getElementById('final-score').innerText = score;
+            if(isMusicPlaying) toggleMusic(); // stop music
+            playTone(400, 'sine', 0.1, 0.3);
+            setTimeout(() => playTone(600, 'sine', 0.1, 0.3), 150);
+            setTimeout(() => playTone(800, 'sine', 0.4, 0.3), 300);
+        }
+    }
+
+</script>
+</body>
+</html>
